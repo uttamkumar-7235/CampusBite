@@ -7,14 +7,27 @@ const STORAGE_KEY_KEY = 'campusbite_supabase_anon_key';
 const STORAGE_KEY_LOCAL_ORDERS = 'campusbite_local_orders';
 const STORAGE_KEY_LOCAL_MENU = 'campusbite_local_menu';
 
+export function normalizeSupabaseUrl(rawUrl?: string): string {
+  if (!rawUrl) return '';
+  let cleaned = rawUrl.trim();
+  const dashboardMatch = cleaned.match(/supabase\.com\/dashboard\/project\/([a-zA-Z0-9_-]+)/);
+  if (dashboardMatch && dashboardMatch[1]) {
+    return `https://${dashboardMatch[1]}.supabase.co`;
+  }
+  if (!cleaned.startsWith('http://') && !cleaned.startsWith('https://')) {
+    cleaned = 'https://' + cleaned;
+  }
+  return cleaned.replace(/\/+$/, '');
+}
+
 export function getSupabaseCredentials() {
-  const envUrl = import.meta.env.VITE_SUPABASE_URL;
+  const envUrl = normalizeSupabaseUrl(import.meta.env.VITE_SUPABASE_URL);
   const envKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
-  const localUrl = localStorage.getItem(STORAGE_KEY_URL);
+  const localUrl = normalizeSupabaseUrl(localStorage.getItem(STORAGE_KEY_URL) || '');
   const localKey = localStorage.getItem(STORAGE_KEY_KEY);
 
   const url = (envUrl && envUrl !== 'https://your-project-ref.supabase.co') ? envUrl : localUrl || '';
-  const key = (envKey && envKey !== 'your-anon-publishable-key') ? envKey : localKey || '';
+  const key = (envKey && envKey !== 'your-anon-publishable-key') ? envKey.trim() : (localKey ? localKey.trim() : '');
 
   return { url, key, isConfigured: Boolean(url && key) };
 }
@@ -168,25 +181,52 @@ export async function fetchFoodItems(): Promise<FoodItem[]> {
 
 export async function saveFoodItem(item: Partial<FoodItem> & { name: string; price: number }): Promise<FoodItem> {
   const supabase = getSupabaseClient();
+  let savedItem: FoodItem | null = null;
+
   if (supabase) {
     try {
-      if (item.id) {
+      if (item.id && !item.id.startsWith('f-')) {
+        const updatePayload: Record<string, any> = {
+          name: item.name.trim(),
+          price: Number(item.price),
+          updated_at: new Date().toISOString(),
+        };
+        if (item.description !== undefined) updatePayload.description = item.description.trim();
+        if (item.category !== undefined) updatePayload.category = item.category;
+        if (item.image_url !== undefined) updatePayload.image_url = item.image_url.trim();
+        if (item.is_veg !== undefined) updatePayload.is_veg = item.is_veg;
+        if (item.is_available !== undefined) updatePayload.is_available = item.is_available;
+        if (item.prep_time_mins !== undefined) updatePayload.prep_time_mins = Number(item.prep_time_mins);
+        if (item.calories !== undefined) updatePayload.calories = Number(item.calories);
+
         const { data, error } = await supabase
           .from('food_items')
-          .update(item)
+          .update(updatePayload)
           .eq('id', item.id)
           .select()
           .single();
         if (error) throw error;
-        return data as FoodItem;
+        if (data) savedItem = data as FoodItem;
       } else {
+        const insertPayload = {
+          name: item.name.trim(),
+          description: item.description?.trim() || '',
+          price: Number(item.price),
+          category: item.category || 'Snacks',
+          image_url: item.image_url?.trim() || '/src/assets/images/dish_samosa_chaat_1792759611219.jpg',
+          is_veg: item.is_veg ?? true,
+          is_available: item.is_available ?? true,
+          prep_time_mins: Number(item.prep_time_mins) || 10,
+          calories: item.calories ? Number(item.calories) : 250,
+        };
+
         const { data, error } = await supabase
           .from('food_items')
-          .insert(item)
+          .insert(insertPayload)
           .select()
           .single();
         if (error) throw error;
-        return data as FoodItem;
+        if (data) savedItem = data as FoodItem;
       }
     } catch (err) {
       console.warn('Supabase saveFoodItem failed, updating local store:', err);
@@ -194,28 +234,44 @@ export async function saveFoodItem(item: Partial<FoodItem> & { name: string; pri
   }
 
   const items = getLocalMenu();
+  if (savedItem) {
+    const idx = items.findIndex((i) => i.id === savedItem!.id || i.name.toLowerCase() === savedItem!.name.toLowerCase());
+    if (idx !== -1) {
+      items[idx] = savedItem;
+    } else {
+      items.unshift(savedItem);
+    }
+    saveLocalMenu(items);
+    window.dispatchEvent(new CustomEvent('campusbite_menu_update', { detail: savedItem }));
+    return savedItem;
+  }
+
+  // Local storage fallback
   if (item.id) {
     const idx = items.findIndex((i) => i.id === item.id);
     if (idx !== -1) {
       items[idx] = { ...items[idx], ...item } as FoodItem;
       saveLocalMenu(items);
+      window.dispatchEvent(new CustomEvent('campusbite_menu_update', { detail: items[idx] }));
       return items[idx];
     }
   }
+
   const newItem: FoodItem = {
     id: 'f-' + Date.now(),
-    name: item.name,
-    description: item.description || '',
+    name: item.name.trim(),
+    description: item.description?.trim() || '',
     price: Number(item.price),
     category: item.category || 'Snacks',
-    image_url: item.image_url || '/src/assets/images/dish_samosa_chaat_1792759611219.jpg',
+    image_url: item.image_url?.trim() || '/src/assets/images/dish_samosa_chaat_1792759611219.jpg',
     is_veg: item.is_veg ?? true,
     is_available: item.is_available ?? true,
-    prep_time_mins: item.prep_time_mins || 10,
-    calories: item.calories || 250,
+    prep_time_mins: Number(item.prep_time_mins) || 10,
+    calories: item.calories ? Number(item.calories) : 250,
   };
   items.unshift(newItem);
   saveLocalMenu(items);
+  window.dispatchEvent(new CustomEvent('campusbite_menu_update', { detail: newItem }));
   return newItem;
 }
 
@@ -225,13 +281,13 @@ export async function deleteFoodItem(id: string): Promise<void> {
     try {
       const { error } = await supabase.from('food_items').delete().eq('id', id);
       if (error) throw error;
-      return;
     } catch (err) {
       console.warn('Supabase deleteFoodItem error:', err);
     }
   }
   const items = getLocalMenu().filter((i) => i.id !== id);
   saveLocalMenu(items);
+  window.dispatchEvent(new CustomEvent('campusbite_menu_update', { detail: { deletedId: id } }));
 }
 
 export async function createOrder(

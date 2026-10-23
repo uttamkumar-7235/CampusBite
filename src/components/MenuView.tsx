@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { FoodCategory, FoodItem } from '../types';
 import { FoodCard } from './FoodCard';
 import { useAuth } from '../context/AuthContext';
-import { Search, Sparkles, Leaf, Clock, ShieldCheck, LogIn, UserPlus, UserCheck } from 'lucide-react';
+import { Search, Sparkles, Leaf, Clock, ShieldCheck, LogIn, UserPlus, UserCheck, Plus } from 'lucide-react';
 
 interface MenuViewProps {
   items: FoodItem[];
@@ -101,6 +101,16 @@ export const MenuView: React.FC<MenuViewProps> = ({
                       {user.role}
                     </span>
                   </div>
+
+                  {user.role === 'admin' && (
+                    <button
+                      onClick={onOpenAdmin}
+                      className="px-4 py-2 bg-stone-900 hover:bg-stone-800 text-white text-xs font-bold rounded-xl shadow-xs transition-all flex items-center gap-1.5 cursor-pointer active:scale-95"
+                    >
+                      <Plus className="w-3.5 h-3.5 text-amber-400" />
+                      <span>+ Add Dish (Manager)</span>
+                    </button>
+                  )}
 
                   <button
                     onClick={onOpenRecommendations}

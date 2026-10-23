@@ -292,8 +292,9 @@ async function startServer() {
     });
   }
 
-  app.listen(port, () => {
-    console.log(`CampusBite server running on port ${port}`);
+  const serverPort = Number(port) || 3000;
+  app.listen(serverPort, '0.0.0.0', () => {
+    console.log(`CampusBite server running on http://0.0.0.0:${serverPort}`);
   });
 }
 

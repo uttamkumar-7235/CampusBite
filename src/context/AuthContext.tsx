@@ -10,10 +10,12 @@ export interface AuthUser {
   phone?: string;
 }
 
-interface AuthResult {
+export interface AuthResult {
   success: boolean;
   error?: string;
   message?: string;
+  role?: UserRole;
+  user?: AuthUser;
 }
 
 interface AuthContextType {
@@ -23,6 +25,7 @@ interface AuthContextType {
   isLoading: boolean;
   isSupabaseConfigured: boolean;
   loginWithEmail: (email: string, pass: string) => Promise<AuthResult>;
+  loginAsAdmin: (email: string, pass: string) => Promise<AuthResult>;
   signupWithEmail: (email: string, pass: string, fullName: string) => Promise<AuthResult>;
   logout: () => Promise<void>;
   refreshProfile: () => Promise<void>;
@@ -203,8 +206,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         }
 
         if (data.user) {
-          await loadUserProfile(data.user.id, data.user.email || email);
-          return { success: true };
+          const authUser = await loadUserProfile(data.user.id, data.user.email || email);
+          return { success: true, role: authUser?.role || 'student', user: authUser || undefined };
         }
         return { success: false, error: 'Sign in failed. Please check your credentials.' };
       } catch (err: any) {
@@ -247,10 +250,26 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       });
 
       localStorage.setItem(STORAGE_KEY_LOCAL_SESSION, JSON.stringify(sessionUser));
-      return { success: true };
+      return { success: true, role: match.role, user: sessionUser };
     } catch (err: any) {
       return { success: false, error: err?.message || 'Local login error' };
     }
+  };
+
+  const loginAsAdmin = async (emailInput: string, passInput: string): Promise<AuthResult> => {
+    const res = await loginWithEmail(emailInput, passInput);
+    if (!res.success) {
+      return res;
+    }
+    if (res.role !== 'admin') {
+      // Revert session so unprivileged user isn't logged into admin console
+      await logout();
+      return {
+        success: false,
+        error: 'Access Denied: This account is registered with student permissions. Only verified canteen staff and administrators are authorized to access the staff portal.',
+      };
+    }
+    return res;
   };
 
   const signupWithEmail = async (emailInput: string, passInput: string, fullNameInput: string): Promise<AuthResult> => {
@@ -379,6 +398,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         isLoading,
         isSupabaseConfigured,
         loginWithEmail,
+        loginAsAdmin,
         signupWithEmail,
         logout,
         refreshProfile,

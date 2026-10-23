@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { useAuth } from '../context/AuthContext';
+import { useToast } from '../context/ToastContext';
 import { FoodItem, Order, OrderStatus } from '../types';
 import { fetchAllOrdersAdmin, updateOrderStatus, fetchFoodItems, saveFoodItem, deleteFoodItem, subscribeToOrderChanges } from '../lib/supabase';
 import {
@@ -18,16 +19,85 @@ import {
   ChevronRight,
   ShieldAlert,
   Lock,
-  LogIn
+  LogIn,
+  Sparkles,
+  Leaf,
+  Image as ImageIcon,
+  Flame,
+  Zap
 } from 'lucide-react';
+
+const DISH_IMAGE_PRESETS = [
+  { label: 'Paneer Roll', url: '/src/assets/images/dish_paneer_roll_1792759610497.jpg' },
+  { label: 'Masala Dosa', url: '/src/assets/images/dish_masala_dosa_1792759610558.jpg' },
+  { label: 'Samosa Chaat', url: '/src/assets/images/dish_samosa_chaat_1792759611219.jpg' },
+  { label: 'Cold Coffee', url: '/src/assets/images/dish_cold_coffee_1792759612380.jpg' },
+  { label: 'Dum Biryani', url: 'https://images.unsplash.com/photo-1563379091339-03b21ab4a4f8?w=800&auto=format&fit=crop&q=80' },
+  { label: 'Chole Bhature', url: 'https://images.unsplash.com/photo-1626777552726-4a6b54c97e46?w=800&auto=format&fit=crop&q=80' },
+  { label: 'Cheesy Maggi', url: 'https://images.unsplash.com/photo-1612927601601-6638404737ce?w=800&auto=format&fit=crop&q=80' },
+  { label: 'Pav Bhaji', url: 'https://images.unsplash.com/photo-1606491956689-2ea866880c84?w=800&auto=format&fit=crop&q=80' },
+  { label: 'Grilled Sandwich', url: 'https://images.unsplash.com/photo-1528735602780-2552fd46c7af?w=800&auto=format&fit=crop&q=80' },
+  { label: 'Kulhad Chai', url: 'https://images.unsplash.com/photo-1576092768241-dec231879fc3?w=800&auto=format&fit=crop&q=80' },
+  { label: 'Mango Lassi', url: 'https://images.unsplash.com/photo-1546173159-315724a31696?w=800&auto=format&fit=crop&q=80' },
+  { label: 'Vada Pav / Burger', url: 'https://images.unsplash.com/photo-1568901346375-23c9450c58cd?w=800&auto=format&fit=crop&q=80' },
+];
+
+const QUICK_TEMPLATES = [
+  {
+    name: 'Mumbai Vada Pav',
+    category: 'Fast Food' as const,
+    price: 35,
+    prep_time_mins: 4,
+    calories: 290,
+    is_veg: true,
+    description: 'Crispy spiced potato dumpling in buttered pav bun with spicy garlic thecha and green chutney.',
+    image_url: 'https://images.unsplash.com/photo-1568901346375-23c9450c58cd?w=800&auto=format&fit=crop&q=80',
+  },
+  {
+    name: 'South Indian Idli Sambar (2 pcs)',
+    category: 'South Indian' as const,
+    price: 50,
+    prep_time_mins: 5,
+    calories: 180,
+    is_veg: true,
+    description: 'Steaming hot, fluffy fermented rice cakes served with aromatic drumstick sambar and coconut dip.',
+    image_url: '/src/assets/images/dish_masala_dosa_1792759610558.jpg',
+  },
+  {
+    name: 'Veg Hakka Noodles',
+    category: 'Fast Food' as const,
+    price: 85,
+    prep_time_mins: 8,
+    calories: 360,
+    is_veg: true,
+    description: 'Wok-tossed noodles with shredded cabbage, bell peppers, carrots, spring onions, and garlic chili oil.',
+    image_url: 'https://images.unsplash.com/photo-1612927601601-6638404737ce?w=800&auto=format&fit=crop&q=80',
+  },
+  {
+    name: 'Fresh Sweet Lemonade (Shikanji)',
+    category: 'Beverages' as const,
+    price: 25,
+    prep_time_mins: 3,
+    calories: 90,
+    is_veg: true,
+    description: 'Chilled freshly squeezed lemon water with roasted cumin, black salt, and mint sprigs.',
+    image_url: '/src/assets/images/dish_cold_coffee_1792759612380.jpg',
+  },
+];
 
 interface AdminDashboardProps {
   onOpenAuth: (mode?: 'login' | 'signup') => void;
+  onOpenAdminAuth?: () => void;
   onBrowseMenu: () => void;
 }
 
-export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onOpenAuth, onBrowseMenu }) => {
+export const AdminDashboard: React.FC<AdminDashboardProps> = ({
+  onOpenAuth,
+  onOpenAdminAuth,
+  onBrowseMenu,
+}) => {
   const { user, role } = useAuth();
+  const { showToast } = useToast();
   const [activeTab, setActiveTab] = useState<'orders' | 'menu'>('orders');
   const [orders, setOrders] = useState<Order[]>([]);
   const [menuItems, setMenuItems] = useState<FoodItem[]>([]);
@@ -37,6 +107,21 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onOpenAuth, onBr
   // Edit / Create food item modal state
   const [editingItem, setEditingItem] = useState<Partial<FoodItem> | null>(null);
   const [isSavingItem, setIsSavingItem] = useState(false);
+
+  const handleOpenAddModal = (preset?: Partial<FoodItem>) => {
+    setEditingItem({
+      name: '',
+      description: '',
+      price: 50,
+      category: 'Snacks',
+      is_veg: true,
+      is_available: true,
+      prep_time_mins: 10,
+      calories: 250,
+      image_url: '/src/assets/images/dish_samosa_chaat_1792759611219.jpg',
+      ...preset,
+    });
+  };
 
   const loadData = async () => {
     if (role !== 'admin') {
@@ -103,12 +188,23 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onOpenAuth, onBr
     e.preventDefault();
     if (!editingItem || !editingItem.name || !editingItem.price) return;
     setIsSavingItem(true);
+    const isNew = !editingItem.id;
     try {
       await saveFoodItem(editingItem as any);
       await loadData();
+      showToast({
+        type: 'info',
+        title: isNew ? 'Dish Added Successfully' : 'Dish Updated',
+        message: `${editingItem.name} (₹${Number(editingItem.price).toFixed(2)}) is now live on the canteen menu!`,
+      });
       setEditingItem(null);
-    } catch (err) {
+    } catch (err: any) {
       console.error('Save item error:', err);
+      showToast({
+        type: 'error',
+        title: 'Save Failed',
+        message: err?.message || 'Failed to save menu item. Please check the values.',
+      });
     } finally {
       setIsSavingItem(false);
     }
@@ -142,10 +238,10 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onOpenAuth, onBr
           </div>
           <div className="pt-2 flex flex-col sm:flex-row items-center justify-center gap-3">
             <button
-              onClick={() => onOpenAuth('login')}
-              className="w-full sm:w-auto px-6 py-3 bg-gradient-to-r from-orange-500 to-amber-600 text-white font-bold text-sm rounded-xl shadow-lg shadow-orange-500/25 hover:shadow-orange-500/40 transition-all flex items-center justify-center gap-2 cursor-pointer"
+              onClick={() => onOpenAdminAuth ? onOpenAdminAuth() : onOpenAuth('login')}
+              className="w-full sm:w-auto px-6 py-3 bg-gradient-to-r from-stone-900 to-stone-800 hover:from-orange-600 hover:to-amber-600 text-white font-bold text-sm rounded-xl shadow-lg shadow-stone-900/15 hover:shadow-orange-500/25 transition-all flex items-center justify-center gap-2 cursor-pointer"
             >
-              <LogIn className="w-4 h-4" />
+              <LogIn className="w-4 h-4 text-amber-400" />
               Sign In as Canteen Admin
             </button>
             <button
@@ -155,11 +251,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onOpenAuth, onBr
               Return to Student Menu
             </button>
           </div>
-          <div className="pt-4 border-t border-stone-200/60 text-xs text-stone-500 text-left space-y-1">
-            <p className="font-semibold text-stone-700">How to Log In as Canteen Admin:</p>
-            <p>• <strong>Offline / Demo Mode:</strong> Enter email <code className="px-1.5 py-0.5 bg-stone-100 rounded text-stone-800 font-mono">suresh.manager@campusbite.edu</code> and password <code className="px-1.5 py-0.5 bg-stone-100 rounded text-stone-800 font-mono">admin123</code> in the Sign In form.</p>
-            <p>• <strong>Live Supabase Mode:</strong> Sign in with any Supabase user account whose profile has been assigned the <code className="px-1.5 py-0.5 bg-stone-100 rounded text-stone-800 font-mono">role = 'admin'</code> in PostgreSQL.</p>
-          </div>
+
         </div>
       </div>
     );
@@ -191,9 +283,10 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onOpenAuth, onBr
               Back to Student Canteen Menu
             </button>
             <button
-              onClick={() => onOpenAuth('login')}
-              className="w-full sm:w-auto px-6 py-3 bg-stone-100 hover:bg-stone-200 text-stone-700 font-bold text-sm rounded-xl transition-colors cursor-pointer"
+              onClick={() => onOpenAdminAuth ? onOpenAdminAuth() : onOpenAuth('login')}
+              className="w-full sm:w-auto px-6 py-3 bg-stone-900 hover:bg-orange-600 text-white font-bold text-sm rounded-xl transition-colors cursor-pointer flex items-center justify-center gap-2"
             >
+              <LogIn className="w-4 h-4 text-amber-400" />
               Sign In with Admin Account
             </button>
           </div>
@@ -235,6 +328,16 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onOpenAuth, onBr
               Menu Manager ({menuItems.length})
             </button>
           </div>
+
+          <button
+            onClick={() => handleOpenAddModal()}
+            className="px-3.5 py-2 bg-orange-600 hover:bg-orange-700 text-white text-xs font-bold rounded-xl shadow-xs hover:shadow-orange-500/20 transition-all flex items-center gap-1.5 cursor-pointer active:scale-95"
+            title="Add a new dish to canteen menu"
+          >
+            <Plus className="w-4 h-4" />
+            <span className="hidden sm:inline">Add New Item</span>
+            <span className="sm:hidden">Add</span>
+          </button>
 
           <button
             onClick={loadData}
@@ -451,19 +554,8 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onOpenAuth, onBr
             </div>
 
             <button
-              onClick={() =>
-                setEditingItem({
-                  name: '',
-                  description: '',
-                  price: 50,
-                  category: 'Snacks',
-                  is_veg: true,
-                  is_available: true,
-                  prep_time_mins: 10,
-                  image_url: '/src/assets/images/dish_samosa_chaat_1792759611219.jpg',
-                })
-              }
-              className="px-4 py-2 bg-orange-600 hover:bg-orange-700 text-white text-xs font-bold rounded-xl shadow-xs transition-colors cursor-pointer flex items-center gap-1.5"
+              onClick={() => handleOpenAddModal()}
+              className="px-4 py-2 bg-orange-600 hover:bg-orange-700 text-white text-xs font-bold rounded-xl shadow-xs transition-colors cursor-pointer flex items-center gap-1.5 active:scale-95"
             >
               <Plus className="w-4 h-4" />
               <span>Add New Dish</span>
@@ -556,129 +648,287 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onOpenAuth, onBr
 
       {/* Edit / Create Item Modal */}
       {editingItem && (
-        <div className="fixed inset-0 z-50 overflow-y-auto flex items-center justify-center p-4">
-          <div className="fixed inset-0 bg-stone-900/40 backdrop-blur-xs" onClick={() => setEditingItem(null)} />
-          <div className="relative glass-panel bg-white/95 rounded-2xl max-w-lg w-full p-6 shadow-2xl border border-stone-200">
-            <h3 className="text-base font-bold text-stone-900 mb-4">
-              {editingItem.id ? 'Edit Menu Item' : 'Add New Canteen Dish'}
-            </h3>
+        <div className="fixed inset-0 z-50 overflow-y-auto flex items-center justify-center p-3 sm:p-4">
+          <div className="fixed inset-0 bg-stone-950/60 backdrop-blur-sm transition-opacity" onClick={() => setEditingItem(null)} />
+          <div className="relative bg-white rounded-3xl max-w-2xl w-full p-6 sm:p-8 shadow-2xl border border-stone-200 my-8 overflow-hidden animate-in fade-in zoom-in-95 duration-200">
+            {/* Top accent bar */}
+            <div className="absolute top-0 inset-x-0 h-1.5 bg-gradient-to-r from-orange-500 via-amber-500 to-orange-600" />
+
+            {/* Header */}
+            <div className="flex items-start justify-between gap-4 mb-5">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-2xl bg-orange-100 text-orange-600 flex items-center justify-center font-bold text-sm shrink-0">
+                  <Utensils className="w-5 h-5" />
+                </div>
+                <div>
+                  <h3 className="text-lg font-black text-stone-900 tracking-tight">
+                    {editingItem.id ? 'Edit Canteen Dish' : 'Add New Canteen Dish'}
+                  </h3>
+                  <p className="text-xs text-stone-500 mt-0.5">
+                    {editingItem.id
+                      ? 'Update recipe, pricing or availability in real-time.'
+                      : 'New items appear instantly on the student ordering menu and AI meal combos.'}
+                  </p>
+                </div>
+              </div>
+
+              <button
+                type="button"
+                onClick={() => setEditingItem(null)}
+                className="p-1.5 rounded-xl text-stone-400 hover:text-stone-700 hover:bg-stone-100 transition-colors cursor-pointer"
+                aria-label="Close"
+              >
+                <Trash2 className="w-4 h-4 sr-only" />
+                <span className="text-lg leading-none font-bold">×</span>
+              </button>
+            </div>
+
+            {/* Quick Starter Templates (Only when creating a brand new dish) */}
+            {!editingItem.id && (
+              <div className="p-3 mb-5 rounded-2xl bg-orange-50/80 border border-orange-200/80">
+                <div className="flex items-center gap-1.5 text-xs font-bold text-orange-950 mb-2">
+                  <Sparkles className="w-3.5 h-3.5 text-orange-600" />
+                  <span>Quick Starter Templates (Click to prefill):</span>
+                </div>
+                <div className="flex flex-wrap gap-1.5">
+                  {QUICK_TEMPLATES.map((tpl) => (
+                    <button
+                      key={tpl.name}
+                      type="button"
+                      onClick={() => setEditingItem((prev) => ({ ...prev, ...tpl }))}
+                      className="px-2.5 py-1 text-[11px] font-semibold bg-white hover:bg-orange-100 text-stone-800 rounded-lg border border-orange-200 transition-colors cursor-pointer shadow-2xs"
+                    >
+                      + {tpl.name} (₹{tpl.price})
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
 
             <form onSubmit={handleSaveItemModal} className="space-y-4 text-xs">
+              {/* Dish Name */}
               <div>
-                <label className="block font-medium text-stone-700 mb-1">Dish Name</label>
+                <label className="block font-bold text-stone-800 mb-1">
+                  Dish Name <span className="text-orange-600">*</span>
+                </label>
                 <input
                   type="text"
                   required
                   value={editingItem.name || ''}
                   onChange={(e) => setEditingItem({ ...editingItem, name: e.target.value })}
-                  placeholder="e.g. Masala Dosa"
-                  className="w-full p-2.5 rounded-xl border border-stone-200 focus:outline-none focus:ring-2 focus:ring-orange-500"
+                  placeholder="e.g. Special Paneer Dosa, Cold Coffee, Chole Bhature"
+                  className="w-full px-3.5 py-2.5 rounded-xl border border-stone-200 bg-white focus:outline-none focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500 text-xs text-stone-900 shadow-2xs"
                 />
               </div>
 
+              {/* Category Selector Buttons */}
               <div>
-                <label className="block font-medium text-stone-700 mb-1">Description</label>
+                <label className="block font-bold text-stone-800 mb-1.5">
+                  Category <span className="text-orange-600">*</span>
+                </label>
+                <div className="grid grid-cols-3 sm:grid-cols-6 gap-1.5">
+                  {(['Snacks', 'South Indian', 'Meals', 'Fast Food', 'Beverages', 'Desserts'] as const).map((cat) => (
+                    <button
+                      key={cat}
+                      type="button"
+                      onClick={() => setEditingItem({ ...editingItem, category: cat })}
+                      className={`py-2 px-1 text-[11px] font-bold rounded-xl border transition-all cursor-pointer text-center ${
+                        editingItem.category === cat
+                          ? 'bg-stone-900 text-white border-stone-900 shadow-xs'
+                          : 'bg-stone-50 text-stone-600 border-stone-200 hover:bg-stone-100'
+                      }`}
+                    >
+                      {cat}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Price, Prep Time, and Calories in 3 columns */}
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                <div>
+                  <label className="block font-bold text-stone-800 mb-1">
+                    Price (₹ INR) <span className="text-orange-600">*</span>
+                  </label>
+                  <div className="relative">
+                    <span className="absolute left-3 top-2.5 text-stone-400 font-bold">₹</span>
+                    <input
+                      type="number"
+                      min="1"
+                      step="1"
+                      required
+                      value={editingItem.price || ''}
+                      onChange={(e) => setEditingItem({ ...editingItem, price: parseFloat(e.target.value) || 0 })}
+                      className="w-full pl-7 pr-3 py-2.5 rounded-xl border border-stone-200 bg-white focus:outline-none focus:ring-2 focus:ring-orange-500 font-mono text-xs text-stone-900 shadow-2xs font-bold"
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block font-bold text-stone-800 mb-1">
+                    Prep Time (mins)
+                  </label>
+                  <div className="relative">
+                    <Clock className="w-3.5 h-3.5 text-stone-400 absolute left-3 top-3" />
+                    <input
+                      type="number"
+                      min="1"
+                      max="60"
+                      value={editingItem.prep_time_mins || 10}
+                      onChange={(e) => setEditingItem({ ...editingItem, prep_time_mins: parseInt(e.target.value) || 5 })}
+                      className="w-full pl-8 pr-3 py-2.5 rounded-xl border border-stone-200 bg-white focus:outline-none focus:ring-2 focus:ring-orange-500 font-mono text-xs text-stone-900 shadow-2xs"
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block font-bold text-stone-800 mb-1">
+                    Calories (kcal)
+                  </label>
+                  <div className="relative">
+                    <Flame className="w-3.5 h-3.5 text-orange-500 absolute left-3 top-3" />
+                    <input
+                      type="number"
+                      min="0"
+                      step="10"
+                      value={editingItem.calories || 250}
+                      onChange={(e) => setEditingItem({ ...editingItem, calories: parseInt(e.target.value) || 0 })}
+                      className="w-full pl-8 pr-3 py-2.5 rounded-xl border border-stone-200 bg-white focus:outline-none focus:ring-2 focus:ring-orange-500 font-mono text-xs text-stone-900 shadow-2xs"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* Description */}
+              <div>
+                <label className="block font-bold text-stone-800 mb-1">
+                  Description & Key Ingredients <span className="text-orange-600">*</span>
+                </label>
                 <textarea
                   rows={2}
                   required
                   value={editingItem.description || ''}
                   onChange={(e) => setEditingItem({ ...editingItem, description: e.target.value })}
-                  placeholder="Ingredients and culinary notes..."
-                  className="w-full p-2.5 rounded-xl border border-stone-200 focus:outline-none focus:ring-2 focus:ring-orange-500"
+                  placeholder="Freshly prepared with aromatic spices, served hot with chutney..."
+                  className="w-full px-3.5 py-2.5 rounded-xl border border-stone-200 bg-white focus:outline-none focus:ring-2 focus:ring-orange-500 text-xs text-stone-900 shadow-2xs"
                 />
               </div>
 
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block font-medium text-stone-700 mb-1">Price (₹ INR)</label>
-                  <input
-                    type="number"
-                    min="1"
-                    step="0.5"
-                    required
-                    value={editingItem.price || ''}
-                    onChange={(e) => setEditingItem({ ...editingItem, price: parseFloat(e.target.value) || 0 })}
-                    className="w-full p-2.5 rounded-xl border border-stone-200 focus:outline-none focus:ring-2 focus:ring-orange-500 font-mono"
-                  />
+              {/* Photo Selection: Presets Carousel + Custom URL */}
+              <div className="space-y-2">
+                <div className="flex items-center justify-between">
+                  <label className="font-bold text-stone-800">
+                    Dish Photo Selection
+                  </label>
+                  <span className="text-[11px] text-stone-400">Click a preset thumbnail or enter URL</span>
                 </div>
 
-                <div>
-                  <label className="block font-medium text-stone-700 mb-1">Category</label>
-                  <select
-                    value={editingItem.category || 'Snacks'}
-                    onChange={(e) => setEditingItem({ ...editingItem, category: e.target.value as any })}
-                    className="w-full p-2.5 rounded-xl border border-stone-200 focus:outline-none focus:ring-2 focus:ring-orange-500 bg-white"
-                  >
-                    <option value="Meals">Meals</option>
-                    <option value="Snacks">Snacks</option>
-                    <option value="Beverages">Beverages</option>
-                    <option value="South Indian">South Indian</option>
-                    <option value="Fast Food">Fast Food</option>
-                    <option value="Desserts">Desserts</option>
-                  </select>
+                {/* Preset Thumbnails */}
+                <div className="flex items-center gap-2 overflow-x-auto pb-1.5 no-scrollbar">
+                  {DISH_IMAGE_PRESETS.map((pst) => {
+                    const isSelected = editingItem.image_url === pst.url;
+                    return (
+                      <button
+                        key={pst.label}
+                        type="button"
+                        onClick={() => setEditingItem({ ...editingItem, image_url: pst.url })}
+                        className={`shrink-0 flex items-center gap-1.5 p-1.5 pr-2.5 rounded-xl border transition-all cursor-pointer ${
+                          isSelected
+                            ? 'bg-orange-600 text-white border-orange-600 shadow-xs'
+                            : 'bg-stone-50 text-stone-700 border-stone-200 hover:bg-stone-100'
+                        }`}
+                      >
+                        <img
+                          src={pst.url}
+                          alt={pst.label}
+                          className="w-6 h-6 rounded-lg object-cover bg-stone-200 shrink-0"
+                        />
+                        <span className="text-[10px] font-bold whitespace-nowrap">{pst.label}</span>
+                      </button>
+                    );
+                  })}
+                </div>
+
+                {/* Custom URL Input with Live Preview */}
+                <div className="flex items-center gap-2.5">
+                  <div className="relative flex-1">
+                    <ImageIcon className="w-4 h-4 text-stone-400 absolute left-3 top-3" />
+                    <input
+                      type="text"
+                      value={editingItem.image_url || ''}
+                      onChange={(e) => setEditingItem({ ...editingItem, image_url: e.target.value })}
+                      placeholder="/src/assets/images/... or https://"
+                      className="w-full pl-9 pr-3.5 py-2 rounded-xl border border-stone-200 bg-white focus:outline-none focus:ring-2 focus:ring-orange-500 font-mono text-[11px] text-stone-800"
+                    />
+                  </div>
+
+                  {editingItem.image_url && (
+                    <img
+                      src={editingItem.image_url}
+                      alt="Preview"
+                      className="w-10 h-10 rounded-xl object-cover border border-stone-200 shadow-2xs shrink-0"
+                      onError={(e) => {
+                        (e.target as HTMLImageElement).src = '/src/assets/images/dish_samosa_chaat_1792759611219.jpg';
+                      }}
+                    />
+                  )}
                 </div>
               </div>
 
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block font-medium text-stone-700 mb-1">Prep Time (minutes)</label>
-                  <input
-                    type="number"
-                    min="1"
-                    value={editingItem.prep_time_mins || 10}
-                    onChange={(e) => setEditingItem({ ...editingItem, prep_time_mins: parseInt(e.target.value) || 5 })}
-                    className="w-full p-2.5 rounded-xl border border-stone-200 focus:outline-none focus:ring-2 focus:ring-orange-500 font-mono"
-                  />
-                </div>
-
-                <div>
-                  <label className="block font-medium text-stone-700 mb-1">Image URL</label>
-                  <input
-                    type="text"
-                    value={editingItem.image_url || ''}
-                    onChange={(e) => setEditingItem({ ...editingItem, image_url: e.target.value })}
-                    placeholder="/src/assets/images/... or https://"
-                    className="w-full p-2.5 rounded-xl border border-stone-200 focus:outline-none focus:ring-2 focus:ring-orange-500"
-                  />
-                </div>
-              </div>
-
-              <div className="flex items-center gap-6 pt-2">
-                <label className="flex items-center gap-2 cursor-pointer">
+              {/* Toggles: Veg & Available */}
+              <div className="flex flex-wrap items-center gap-6 pt-1">
+                <label className="flex items-center gap-2 cursor-pointer bg-stone-50 px-3 py-2 rounded-xl border border-stone-200/80 hover:bg-stone-100/80 transition-colors">
                   <input
                     type="checkbox"
                     checked={editingItem.is_veg ?? true}
                     onChange={(e) => setEditingItem({ ...editingItem, is_veg: e.target.checked })}
-                    className="rounded text-orange-600 focus:ring-orange-500"
+                    className="w-4 h-4 rounded text-emerald-600 focus:ring-emerald-500"
                   />
-                  <span>Vegetarian Dish</span>
+                  <span className="flex items-center gap-1.5 font-bold text-stone-800">
+                    <Leaf className="w-3.5 h-3.5 text-emerald-600" />
+                    Pure Vegetarian Dish
+                  </span>
                 </label>
 
-                <label className="flex items-center gap-2 cursor-pointer">
+                <label className="flex items-center gap-2 cursor-pointer bg-stone-50 px-3 py-2 rounded-xl border border-stone-200/80 hover:bg-stone-100/80 transition-colors">
                   <input
                     type="checkbox"
                     checked={editingItem.is_available ?? true}
                     onChange={(e) => setEditingItem({ ...editingItem, is_available: e.target.checked })}
-                    className="rounded text-orange-600 focus:ring-orange-500"
+                    className="w-4 h-4 rounded text-orange-600 focus:ring-orange-500"
                   />
-                  <span>Currently Available</span>
+                  <span className="flex items-center gap-1.5 font-bold text-stone-800">
+                    <Power className="w-3.5 h-3.5 text-orange-600" />
+                    Available In Stock Today
+                  </span>
                 </label>
               </div>
 
-              <div className="flex justify-end gap-2.5 pt-4 border-t border-stone-200">
+              {/* Action Buttons */}
+              <div className="flex items-center justify-end gap-3 pt-4 border-t border-stone-200">
                 <button
                   type="button"
                   onClick={() => setEditingItem(null)}
-                  className="px-4 py-2 rounded-xl text-stone-600 hover:bg-stone-100 transition-colors"
+                  className="px-5 py-2.5 rounded-xl text-stone-600 hover:bg-stone-100 font-bold transition-colors cursor-pointer"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
                   disabled={isSavingItem}
-                  className="px-4 py-2 bg-orange-600 hover:bg-orange-700 text-white font-bold rounded-xl shadow-xs transition-colors disabled:opacity-50"
+                  className="px-6 py-2.5 bg-orange-600 hover:bg-orange-700 text-white font-bold rounded-xl shadow-md hover:shadow-orange-500/20 transition-all disabled:opacity-50 cursor-pointer flex items-center gap-2 active:scale-95"
                 >
-                  {isSavingItem ? 'Saving...' : 'Save Dish'}
+                  {isSavingItem ? (
+                    <>
+                      <span className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                      <span>Saving to Menu...</span>
+                    </>
+                  ) : (
+                    <>
+                      <Plus className="w-4 h-4" />
+                      <span>{editingItem.id ? 'Save Changes' : 'Add Item to Canteen'}</span>
+                    </>
+                  )}
                 </button>
               </div>
             </form>

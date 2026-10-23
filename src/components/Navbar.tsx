@@ -1,20 +1,20 @@
 import React, { useState } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { useCart } from '../context/CartContext';
-import { ShoppingBag, Database, ShieldCheck, UserCheck, LogOut, Sparkles, LogIn, UserPlus, ChevronDown, Clock } from 'lucide-react';
+import { ShoppingBag, ShieldCheck, UserCheck, LogOut, Sparkles, LogIn, UserPlus, ChevronDown, Clock } from 'lucide-react';
 
 interface NavbarProps {
   currentTab: 'menu' | 'recommendations' | 'orders' | 'admin';
   setCurrentTab: (tab: 'menu' | 'recommendations' | 'orders' | 'admin') => void;
-  onOpenConfig: () => void;
   onOpenAuth: (mode?: 'login' | 'signup') => void;
+  onOpenAdminAuth?: () => void;
 }
 
 export const Navbar: React.FC<NavbarProps> = ({
   currentTab,
   setCurrentTab,
-  onOpenConfig,
   onOpenAuth,
+  onOpenAdminAuth,
 }) => {
   const { user, role, logout, isSupabaseConfigured, isLoading } = useAuth();
   const { totalCount, setIsCartOpen } = useCart();
@@ -93,18 +93,8 @@ export const Navbar: React.FC<NavbarProps> = ({
           </button>
         </nav>
 
-        {/* Zone 3: Primary Actions (Supabase status + Auth buttons / Profile + Cart Tray) */}
+        {/* Zone 3: Primary Actions (Auth buttons / Profile + Cart Tray) */}
         <div className="flex items-center gap-2 sm:gap-3 shrink-0">
-          {/* Supabase status button */}
-          <button
-            onClick={onOpenConfig}
-            title={isSupabaseConfigured ? 'Supabase Project Connected' : 'Configure Supabase Database'}
-            className="hidden sm:flex items-center gap-1.5 text-xs px-2.5 py-1.5 rounded-xl border border-stone-200/80 hover:bg-stone-100/70 transition-colors text-stone-600 whitespace-nowrap cursor-pointer"
-          >
-            <Database className={`w-3.5 h-3.5 ${isSupabaseConfigured ? 'text-emerald-500' : 'text-amber-500'}`} />
-            <span>{isSupabaseConfigured ? 'Supabase Live' : 'Database Setup'}</span>
-          </button>
-
           {/* Authentication Area */}
           {isLoading ? (
             <div className="w-20 h-8 rounded-xl bg-stone-100 animate-pulse" />
@@ -156,7 +146,7 @@ export const Navbar: React.FC<NavbarProps> = ({
                       <span>My Canteen Orders</span>
                     </button>
 
-                    {role === 'admin' && (
+                    {role === 'admin' ? (
                       <button
                         onClick={() => {
                           setCurrentTab('admin');
@@ -167,7 +157,18 @@ export const Navbar: React.FC<NavbarProps> = ({
                         <span>Canteen Operations Hub</span>
                         <ShieldCheck className="w-3.5 h-3.5 text-amber-600" />
                       </button>
-                    )}
+                    ) : onOpenAdminAuth ? (
+                      <button
+                        onClick={() => {
+                          setIsProfileMenuOpen(false);
+                          onOpenAdminAuth();
+                        }}
+                        className="w-full text-left px-2.5 py-1.5 rounded-lg hover:bg-amber-50/60 text-stone-700 font-medium transition-colors flex items-center justify-between cursor-pointer"
+                      >
+                        <span>Canteen Staff Portal</span>
+                        <ShieldCheck className="w-3.5 h-3.5 text-amber-600" />
+                      </button>
+                    ) : null}
                   </div>
 
                   <div className="pt-2 border-t border-stone-100">
