@@ -29,3 +29,47 @@
     border-bottom: 1px solid rgba(245, 215, 190, 0.5);
   }
 }
+
+@media print {
+  /* Hide all regular web app chrome, headers, footers, buttons */
+  body {
+    background: white !important;
+    color: black !important;
+    margin: 0 !important;
+    padding: 0 !important;
+  }
+
+  .no-print,
+  header,
+  footer,
+  nav,
+  button,
+  .glass-nav {
+    display: none !important;
+  }
+
+  /* Isolate and format the printable slip cleanly */
+  body * {
+    visibility: hidden;
+  }
+
+  #printable-canteen-slip,
+  #printable-canteen-slip * {
+    visibility: visible;
+  }
+
+  #printable-canteen-slip {
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 100% !important;
+    max-width: 80mm !important;
+    margin: 0 auto !important;
+    padding: 8px !important;
+    box-shadow: none !important;
+    border: none !important;
+    background: white !important;
+    color: black !important;
+  }
+}
+

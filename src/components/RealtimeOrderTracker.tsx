@@ -4,11 +4,17 @@ import { useToast } from '../context/ToastContext';
 import { fetchUserOrders, subscribeToUserOrders } from '../lib/supabase';
 import { Order, OrderStatus } from '../types';
 
+import { sendOrderReadyNotification } from '../lib/notifications';
+
 interface RealtimeOrderTrackerProps {
   onOpenOrderModal: (order: Order) => void;
+  onOpenSlipModal?: (order: Order) => void;
 }
 
-export const RealtimeOrderTracker: React.FC<RealtimeOrderTrackerProps> = ({ onOpenOrderModal }) => {
+export const RealtimeOrderTracker: React.FC<RealtimeOrderTrackerProps> = ({
+  onOpenOrderModal,
+  onOpenSlipModal,
+}) => {
   const { user } = useAuth();
   const { showToast } = useToast();
 
@@ -65,15 +71,24 @@ export const RealtimeOrderTracker: React.FC<RealtimeOrderTrackerProps> = ({ onOp
 
         // Transition: Anything -> 'ready'
         if (newStatus === 'ready' && prevStatus !== 'ready') {
+          // Send system notification + audio chime + vibration
+          sendOrderReadyNotification(order, () => {
+            if (onOpenOrderModal) onOpenOrderModal(order);
+          });
+
           showToast({
             type: 'ready',
             title: `Order #${order.order_number} is Ready!`,
             message: 'Your hot dish is prepared and ready at Counter #2. Please present your token to collect.',
             orderNumber: order.order_number,
             orderId: order.id,
-            actionLabel: 'Open Order Tracker',
+            actionLabel: 'View Token Slip',
             onAction: () => {
-              onOpenOrderModal(order);
+              if (onOpenSlipModal) {
+                onOpenSlipModal(order);
+              } else {
+                onOpenOrderModal(order);
+              }
             },
           });
         }
@@ -85,9 +100,13 @@ export const RealtimeOrderTracker: React.FC<RealtimeOrderTrackerProps> = ({ onOp
             message: 'Cash payment processed at counter. Food delivered — enjoy your meal!',
             orderNumber: order.order_number,
             orderId: order.id,
-            actionLabel: 'View Order Receipt',
+            actionLabel: 'Print Receipt Slip',
             onAction: () => {
-              onOpenOrderModal(order);
+              if (onOpenSlipModal) {
+                onOpenSlipModal(order);
+              } else {
+                onOpenOrderModal(order);
+              }
             },
           });
         }
@@ -97,7 +116,8 @@ export const RealtimeOrderTracker: React.FC<RealtimeOrderTrackerProps> = ({ onOp
     return () => {
       unsubscribe();
     };
-  }, [user?.id, onOpenOrderModal, showToast]);
+  }, [user?.id, onOpenOrderModal, onOpenSlipModal, showToast]);
+
 
   return null; // Headless real-time listener component
 };

@@ -29,7 +29,15 @@ app.post('/api/recommendations', async (req, res) => {
     }
 
     try {
-      const ai = new GoogleGenAI({ apiKey });
+      const ai = new GoogleGenAI({
+        apiKey,
+        httpOptions: {
+          headers: {
+            'User-Agent': 'aistudio-build',
+          },
+        },
+      });
+
       const prompt = `You are the executive chef of "CampusBite", the official canteen of Prasad Institute of Technology (PIT) in India.
 Recommend 2 to 3 practical, delicious meal combos from the real menu provided below.
 
@@ -65,14 +73,21 @@ Return ONLY valid JSON matching this schema:
   }
 ]`;
 
-      const response = await ai.models.generateContent({
-        model: 'gemini-2.5-flash',
-        contents: prompt,
-        config: {
-          responseMimeType: 'application/json',
-          temperature: 0.3,
-        },
-      });
+      const timeoutPromise = new Promise<never>((_, reject) =>
+        setTimeout(() => reject(new Error('Gemini recommendation timeout')), 5000)
+      );
+
+      const response = await Promise.race([
+        ai.models.generateContent({
+          model: 'gemini-3.8-flash',
+          contents: prompt,
+          config: {
+            responseMimeType: 'application/json',
+            temperature: 0.3,
+          },
+        }),
+        timeoutPromise,
+      ]);
 
       const text = response.text || '[]';
       const parsedCombos = JSON.parse(text);

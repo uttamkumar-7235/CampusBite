@@ -208,7 +208,7 @@ export const AIRecommendations: React.FC<AIRecommendationsProps> = ({ availableD
           <div className="flex items-center gap-1.5">
             <span>Source:</span>
             <span className="font-semibold text-stone-800">
-              {source === 'gemini_ai' ? 'Gemini 2.5 AI Powered' : 'Algorithmic Optimization'}
+              {source === 'gemini_ai' ? 'Gemini 3.8 AI Powered' : 'Algorithmic Optimization'}
             </span>
           </div>
           <button

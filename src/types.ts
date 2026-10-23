@@ -47,8 +47,10 @@ export interface Order {
   order_number: number;
   total: number;
   status: OrderStatus;
-  payment_method: 'cash_at_counter';
+  payment_method: 'cash_at_counter' | 'upi_counter';
   payment_status: 'pending' | 'paid' | 'refunded';
+  pickup_type?: 'dine_in' | 'takeaway';
+  student_roll?: string;
   notes?: string;
   created_at: string;
   updated_at: string;

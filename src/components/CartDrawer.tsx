@@ -3,7 +3,7 @@ import { useCart } from '../context/CartContext';
 import { useAuth } from '../context/AuthContext';
 import { createOrder } from '../lib/supabase';
 import { Order } from '../types';
-import { X, Trash2, Plus, Minus, Banknote, Clock, ArrowRight, CheckCircle2, LogIn } from 'lucide-react';
+import { X, Trash2, Plus, Minus, Banknote, Clock, ArrowRight, CheckCircle2, LogIn, QrCode, UtensilsCrossed, Package, UserCheck } from 'lucide-react';
 
 interface CartDrawerProps {
   onOrderPlaced: (order: Order) => void;
@@ -14,6 +14,9 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({ onOrderPlaced, onOpenAut
   const { items, updateQuantity, removeItem, clearCart, totalAmount, isCartOpen, setIsCartOpen } = useCart();
   const { user } = useAuth();
   const [notes, setNotes] = useState('');
+  const [paymentMethod, setPaymentMethod] = useState<'cash_at_counter' | 'upi_counter'>('cash_at_counter');
+  const [pickupType, setPickupType] = useState<'dine_in' | 'takeaway'>('dine_in');
+  const [studentRoll, setStudentRoll] = useState('');
   const [isPlacing, setIsPlacing] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
@@ -38,9 +41,21 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({ onOrderPlaced, onOpenAut
       const studentId = user.id;
       const studentName = user.full_name || user.email || 'Student';
 
-      const placedOrder = await createOrder(studentId, studentName, items, notes);
+      const placedOrder = await createOrder(
+        studentId,
+        studentName,
+        items,
+        notes,
+        {
+          paymentMethod,
+          pickupType,
+          studentRoll,
+          studentPhone: user.phone,
+        }
+      );
       clearCart();
       setNotes('');
+      setStudentRoll('');
       setIsCartOpen(false);
       onOrderPlaced(placedOrder);
     } catch (err: any) {
@@ -176,6 +191,55 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({ onOrderPlaced, onOpenAut
                   </span>
                 </div>
 
+                {/* Dine-In vs Takeaway */}
+                <div>
+                  <label className="block text-xs font-bold text-stone-800 mb-1.5">
+                    Dining Preference
+                  </label>
+                  <div className="grid grid-cols-2 gap-2">
+                    <button
+                      type="button"
+                      onClick={() => setPickupType('dine_in')}
+                      className={`p-2.5 rounded-xl text-xs font-semibold flex items-center justify-center gap-2 border transition-all cursor-pointer ${
+                        pickupType === 'dine_in'
+                          ? 'bg-orange-50 border-orange-500 text-orange-950 shadow-xs ring-1 ring-orange-400'
+                          : 'bg-white border-stone-200 text-stone-600 hover:border-stone-300'
+                      }`}
+                    >
+                      <UtensilsCrossed className="w-3.5 h-3.5 text-orange-600" />
+                      <span>Dine-In (Canteen)</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setPickupType('takeaway')}
+                      className={`p-2.5 rounded-xl text-xs font-semibold flex items-center justify-center gap-2 border transition-all cursor-pointer ${
+                        pickupType === 'takeaway'
+                          ? 'bg-orange-50 border-orange-500 text-orange-950 shadow-xs ring-1 ring-orange-400'
+                          : 'bg-white border-stone-200 text-stone-600 hover:border-stone-300'
+                      }`}
+                    >
+                      <Package className="w-3.5 h-3.5 text-orange-600" />
+                      <span>Takeaway (Pack)</span>
+                    </button>
+                  </div>
+                </div>
+
+                {/* Student Roll / ID (Optional) */}
+                <div>
+                  <label htmlFor="student-roll" className="block text-xs font-medium text-stone-700 mb-1.5 flex items-center justify-between">
+                    <span>College Roll No / Student ID</span>
+                    <span className="text-[10px] text-stone-400">(Optional for token call)</span>
+                  </label>
+                  <input
+                    id="student-roll"
+                    type="text"
+                    value={studentRoll}
+                    onChange={(e) => setStudentRoll(e.target.value)}
+                    placeholder="e.g. PIT-2024-CS-042"
+                    className="w-full text-xs rounded-xl border border-stone-200 p-2.5 focus:outline-none focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500 bg-white"
+                  />
+                </div>
+
                 {/* Special Cooking Instructions */}
                 <div>
                   <label htmlFor="order-notes" className="block text-xs font-medium text-stone-700 mb-1.5">
@@ -185,22 +249,72 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({ onOrderPlaced, onOpenAut
                     id="order-notes"
                     value={notes}
                     onChange={(e) => setNotes(e.target.value)}
-                    placeholder="e.g., extra mint chutney, pack separately, mild spices..."
+                    placeholder="e.g., extra mint chutney, mild spices, pack spoon..."
                     rows={2}
                     className="w-full text-xs rounded-xl border border-stone-200 p-2.5 focus:outline-none focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500 bg-white"
                   />
                 </div>
 
-                {/* Cash at Counter Notice */}
-                <div className="p-3 rounded-xl bg-orange-50/60 border border-orange-200/60 flex items-start gap-2.5 text-xs text-orange-950">
-                  <Banknote className="w-4 h-4 text-orange-600 shrink-0 mt-0.5" />
-                  <div>
-                    <span className="font-semibold block">Cash at Counter Checkout</span>
-                    <span className="text-orange-900/80 text-[11px]">
-                      Present your order token at the cash counter to pay in cash/UPI when picking up your food.
-                    </span>
+                {/* Payment Method Selector */}
+                <div>
+                  <label className="block text-xs font-bold text-stone-800 mb-1.5">
+                    Payment Method
+                  </label>
+                  <div className="grid grid-cols-2 gap-2">
+                    <button
+                      type="button"
+                      onClick={() => setPaymentMethod('cash_at_counter')}
+                      className={`p-2.5 rounded-xl text-xs font-semibold flex items-center justify-center gap-2 border transition-all cursor-pointer ${
+                        paymentMethod === 'cash_at_counter'
+                          ? 'bg-amber-50 border-amber-500 text-amber-950 ring-1 ring-amber-400'
+                          : 'bg-white border-stone-200 text-stone-600 hover:border-stone-300'
+                      }`}
+                    >
+                      <Banknote className="w-3.5 h-3.5 text-amber-600" />
+                      <span>Cash at Counter</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setPaymentMethod('upi_counter')}
+                      className={`p-2.5 rounded-xl text-xs font-semibold flex items-center justify-center gap-2 border transition-all cursor-pointer ${
+                        paymentMethod === 'upi_counter'
+                          ? 'bg-emerald-50 border-emerald-500 text-emerald-950 ring-1 ring-emerald-400'
+                          : 'bg-white border-stone-200 text-stone-600 hover:border-stone-300'
+                      }`}
+                    >
+                      <QrCode className="w-3.5 h-3.5 text-emerald-600" />
+                      <span>UPI Scan & Pay</span>
+                    </button>
                   </div>
                 </div>
+
+                {/* Notice depending on payment method */}
+                {paymentMethod === 'cash_at_counter' ? (
+                  <div className="p-3 rounded-xl bg-orange-50/60 border border-orange-200/60 flex items-start gap-2.5 text-xs text-orange-950">
+                    <Banknote className="w-4 h-4 text-orange-600 shrink-0 mt-0.5" />
+                    <div>
+                      <span className="font-semibold block">Pay Cash at Counter #1</span>
+                      <span className="text-orange-900/80 text-[11px]">
+                        Place your order, receive your live token number, and pay exact cash at Counter #1 when collecting your food.
+                      </span>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="p-3 rounded-xl bg-emerald-50/70 border border-emerald-200/70 flex items-start gap-2.5 text-xs text-emerald-950">
+                    <QrCode className="w-4 h-4 text-emerald-600 shrink-0 mt-0.5" />
+                    <div>
+                      <div className="flex items-center justify-between">
+                        <span className="font-bold block">Instant UPI Counter Payment</span>
+                        <span className="text-[10px] bg-emerald-100 text-emerald-800 px-1.5 py-0.5 rounded font-mono font-semibold">
+                          VPA: pitcanteen@upi
+                        </span>
+                      </div>
+                      <span className="text-emerald-900/80 text-[11px] block mt-0.5">
+                        Pay ₹{totalAmount.toFixed(2)} via GPay, PhonePe, Paytm, or BHIM at the pickup desk. Token generated instantly.
+                      </span>
+                    </div>
+                  </div>
+                )}
               </>
             )}
           </div>
@@ -231,6 +345,8 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({ onOrderPlaced, onOpenAut
                 className={`w-full py-3 px-4 ${
                   !user 
                     ? 'bg-gradient-to-r from-orange-500 to-amber-600 hover:from-orange-600 hover:to-amber-700' 
+                    : paymentMethod === 'upi_counter'
+                    ? 'bg-emerald-600 hover:bg-emerald-700'
                     : 'bg-orange-600 hover:bg-orange-700'
                 } text-white font-bold rounded-xl shadow-md hover:shadow-orange-500/25 flex items-center justify-center gap-2 transition-all disabled:opacity-50 cursor-pointer active:scale-98`}
               >
@@ -246,7 +362,11 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({ onOrderPlaced, onOpenAut
                   </>
                 ) : (
                   <>
-                    <span>Place Order (Cash at Counter)</span>
+                    <span>
+                      {paymentMethod === 'upi_counter'
+                        ? `Confirm & Generate Token (₹${totalAmount.toFixed(2)} UPI)`
+                        : `Place Order (Cash at Counter ₹${totalAmount.toFixed(2)})`}
+                    </span>
                     <ArrowRight className="w-4 h-4" />
                   </>
                 )}

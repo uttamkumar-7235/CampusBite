@@ -1,5 +1,8 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { MessageSquare, X, Send, Bot, User, Trash2, Sparkles, ChefHat } from 'lucide-react';
+import { MessageSquare, X, Send, Bot, User, Trash2, Sparkles, ChefHat, Plus, Check, ShoppingBag } from 'lucide-react';
+import { useCart } from '../context/CartContext';
+import { INITIAL_FOOD_ITEMS } from '../data/initialMenu';
+import { FoodItem } from '../types';
 
 interface ChatMessage {
   id: string;
@@ -12,7 +15,7 @@ const INITIAL_MESSAGES: ChatMessage[] = [
   {
     id: 'msg-welcome',
     role: 'model',
-    content: "Namaste! I'm Chef Bite, your Prasad Institute of Technology Canteen assistant. Ask me anything about our dishes, quick recommendations under your budget, or order tokens!",
+    content: "Namaste! I'm Chef Bite, your Prasad Institute of Technology Canteen assistant. Ask me anything about our dishes, quick recommendations under your budget, or order tokens! You can also tap dishes to add them straight to your tray.",
     timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
   },
 ];
@@ -25,12 +28,20 @@ const QUICK_PROMPTS = [
 ];
 
 export const CanteenChatbot: React.FC = () => {
+  const { addItem, setIsCartOpen } = useCart();
   const [isOpen, setIsOpen] = useState(false);
   const [messages, setMessages] = useState<ChatMessage[]>(INITIAL_MESSAGES);
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [selectedModel, setSelectedModel] = useState<'gemini-3.8-flash' | 'gemini-3.1-flash-lite'>('gemini-3.8-flash');
+  const [justAddedDish, setJustAddedDish] = useState<string | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+
+  const handleQuickAdd = (dish: FoodItem) => {
+    addItem(dish, 1);
+    setJustAddedDish(dish.id);
+    setTimeout(() => setJustAddedDish(null), 2000);
+  };
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -144,6 +155,16 @@ export const CanteenChatbot: React.FC = () => {
 
             <div className="flex items-center gap-1">
               <button
+                onClick={() => {
+                  setIsOpen(false);
+                  setIsCartOpen(true);
+                }}
+                title="Open Tray"
+                className="p-1.5 rounded-lg text-stone-500 hover:text-orange-600 hover:bg-orange-50 transition-colors cursor-pointer"
+              >
+                <ShoppingBag className="w-4 h-4" />
+              </button>
+              <button
                 onClick={handleClearHistory}
                 title="Clear conversation"
                 className="p-1.5 rounded-lg text-stone-400 hover:text-stone-700 hover:bg-stone-100 transition-colors cursor-pointer"
@@ -214,6 +235,38 @@ export const CanteenChatbot: React.FC = () => {
                     }`}
                   >
                     <p>{msg.content}</p>
+
+                    {/* Detected Dishes Quick-Add Chips */}
+                    {!isUser && (() => {
+                      const matchingDishes = INITIAL_FOOD_ITEMS.filter((dish) =>
+                        msg.content.toLowerCase().includes(dish.name.toLowerCase()) ||
+                        (dish.name.includes(' ') && dish.name.toLowerCase().split(' ').some((word) => word.length >= 5 && msg.content.toLowerCase().includes(word)))
+                      );
+                      if (matchingDishes.length === 0) return null;
+                      return (
+                        <div className="mt-2 pt-2 border-t border-stone-200/60 flex flex-wrap gap-1.5">
+                          {matchingDishes.slice(0, 3).map((dish) => {
+                            const isAdded = justAddedDish === dish.id;
+                            return (
+                              <button
+                                key={dish.id}
+                                onClick={() => handleQuickAdd(dish)}
+                                className={`px-2 py-1 text-[10px] font-bold rounded-lg border transition-all cursor-pointer flex items-center gap-1 ${
+                                  isAdded
+                                    ? 'bg-emerald-600 text-white border-emerald-600'
+                                    : 'bg-white hover:bg-orange-50 text-stone-800 hover:text-orange-700 border-stone-200 hover:border-orange-200 shadow-2xs'
+                                }`}
+                              >
+                                {isAdded ? <Check className="w-3 h-3 text-white" /> : <Plus className="w-3 h-3 text-orange-600" />}
+                                <span>{dish.name}</span>
+                                <span className="font-mono text-stone-500">₹{dish.price}</span>
+                              </button>
+                            );
+                          })}
+                        </div>
+                      );
+                    })()}
+
                     <span
                       className={`block text-[9px] mt-1 text-right ${
                         isUser ? 'text-orange-200' : 'text-stone-400'

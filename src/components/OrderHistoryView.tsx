@@ -3,20 +3,23 @@ import { Order, OrderStatus } from '../types';
 import { fetchUserOrders, subscribeToOrderChanges } from '../lib/supabase';
 import { useAuth } from '../context/AuthContext';
 import { useCart } from '../context/CartContext';
-import { Clock, CheckCircle2, ChevronRight, RotateCcw, AlertCircle, ShoppingBag } from 'lucide-react';
+import { Clock, CheckCircle2, ChevronRight, RotateCcw, AlertCircle, ShoppingBag, Printer } from 'lucide-react';
+import { OrderSlipModal } from './OrderSlipModal';
 
 interface OrderHistoryViewProps {
   onTrackOrder: (order: Order) => void;
   onBrowseMenu: () => void;
   onOpenAuth?: (mode?: 'login' | 'signup') => void;
+  onPrintSlip?: (order: Order) => void;
 }
 
-export const OrderHistoryView: React.FC<OrderHistoryViewProps> = ({ onTrackOrder, onBrowseMenu, onOpenAuth }) => {
+export const OrderHistoryView: React.FC<OrderHistoryViewProps> = ({ onTrackOrder, onBrowseMenu, onOpenAuth, onPrintSlip }) => {
   const { user } = useAuth();
   const { addItem, setIsCartOpen } = useCart();
   const [orders, setOrders] = useState<Order[]>([]);
   const [filter, setFilter] = useState<'all' | 'active' | 'completed'>('all');
   const [isLoading, setIsLoading] = useState(true);
+  const [selectedSlipOrder, setSelectedSlipOrder] = useState<Order | null>(null);
 
   const loadOrders = async () => {
     if (!user?.id) {
@@ -224,6 +227,21 @@ export const OrderHistoryView: React.FC<OrderHistoryViewProps> = ({ onTrackOrder
 
                   <div className="flex items-center gap-2">
                     <button
+                      onClick={() => {
+                        if (onPrintSlip) {
+                          onPrintSlip(order);
+                        } else {
+                          setSelectedSlipOrder(order);
+                        }
+                      }}
+                      className="px-3 py-1.5 rounded-xl bg-white hover:bg-stone-100 text-stone-700 text-xs font-semibold flex items-center gap-1.5 border border-stone-200/90 shadow-2xs transition-colors cursor-pointer"
+                      title="Print or view token slip"
+                    >
+                      <Printer className="w-3.5 h-3.5 text-stone-500" />
+                      <span>Print Slip</span>
+                    </button>
+
+                    <button
                       onClick={() => onTrackOrder(order)}
                       className="px-3.5 py-1.5 rounded-xl bg-orange-600 hover:bg-orange-700 text-white text-xs font-semibold flex items-center gap-1.5 shadow-xs transition-colors cursor-pointer"
                     >
@@ -237,6 +255,13 @@ export const OrderHistoryView: React.FC<OrderHistoryViewProps> = ({ onTrackOrder
           })}
         </div>
       )}
+
+      {/* Printable Canteen Slip Modal */}
+      <OrderSlipModal
+        order={selectedSlipOrder}
+        isOpen={Boolean(selectedSlipOrder)}
+        onClose={() => setSelectedSlipOrder(null)}
+      />
     </div>
   );
 };
