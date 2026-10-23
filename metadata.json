@@ -1,0 +1,7 @@
+{
+  "name": "CampusBite — College Canteen",
+  "description": "Smart college canteen ordering web app with glassmorphism UI, real-time order tracking, student and admin portals, and AI meal recommendations.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
+
